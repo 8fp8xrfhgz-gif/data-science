@@ -19,6 +19,11 @@ Exploratory data analysis on a 500-student online learning dataset. Covers data 
 
 **Skills:** pandas, seaborn, matplotlib, data cleaning, groupby analysis
 
+### 🔤 [Introduction to Data Science (R)](./intro-data-science-r)
+Parallel coursework covering core data science workflows in R — SQL querying, data reshaping, grouped operations, and visualization — complementing the Python-focused work in my main program.
+
+**Skills:** R, sqldf, dplyr, data reshaping, data visualization
+
 ---
 
 ## GIS Background — NTU Coursework

@@ -33,8 +33,8 @@ Q <- quadratcount(fastfood_ppp, nx = 300 / 10, ny = 300 / 10)
 plot(Q, main = "Quadrat Analysis of Fast Food Locations")
 points(fastfood_ppp, col = "red", pch = 20)
 # 執行卡方檢定
-quadrat.test(Q, alternative = "clustered", method = "Chisq")
-# 顯示卡方檢定結果
+# (fixed: removed a duplicate call to quadrat.test — the test was
+# previously run twice and printed twice with identical results)
 test_result <- quadrat.test(Q, alternative = "clustered", method = "Chisq")
 print(test_result)
 # 在 95% 顯著水準下判定是否群聚
@@ -102,6 +102,9 @@ fastfood_ppp <- ppp(fastfood_coords[, 1], fastfood_coords[, 2], window = owin(xr
 public_school_ppp <- ppp(public_school_coords[, 1], public_school_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
 fastfood_K <- Kest(fastfood_ppp, correction = "border")
 public_school_K <- Kest(public_school_ppp, correction = "border")
+# (note: these two base-R plots each open a separate figure rather
+# than overlaying on one plot; the ggplot version below is the
+# actual side-by-side comparison used for interpretation)
 plot(fastfood_K, main = "K_fastfood", col = "red")
 plot(public_school_K, main = "K_public_school", col = "blue")
 fastfood_K_df <- data.frame(r = fastfood_K$r, K = fastfood_K$border, Type = "fastfood")
@@ -168,10 +171,16 @@ F_private <- tryCatch({
   print(e)
   NULL
 })
+# (fixed: the original code plotted `$theo`, the *theoretical* F-value
+# under complete spatial randomness — this depends only on r, so the
+# two curves were nearly identical regardless of the actual data and
+# the comparison was meaningless. `$rs` is the border-corrected
+# *empirical* estimate, which actually reflects how close fast food
+# restaurants are to each school type in the real data.)
 if (!is.null(F_public) && !is.null(F_private)) {
   F_data <- data.frame(
     Distance = c(F_public$r, F_private$r),
-    F_value = c(F_public$theo, F_private$theo),
+    F_value = c(F_public$rs, F_private$rs),
     SchoolType = factor(rep(c("Public", "Private"), each = length(F_public$r)))
   )
   ggplot(F_data, aes(x = Distance, y = F_value, color = SchoolType)) +
@@ -186,7 +195,7 @@ if (!is.null(F_public) && !is.null(F_private)) {
 }
 ```
 ## 結果解釋
-## 圖表顯示了速食店到最近公立和私立小學的 F 函數。F 函數表示的是速食店到最近小學的累積分佈函數（CDF），數值越高表示速食店到最近小學的距離越短。
+## 圖表顯示了速食店到最近公立和私立小學的 F 函數（採用邊界修正後的實際估計值 `$rs`，而非理論期望值）。F 函數表示的是速食店到最近小學的累積分佈函數（CDF），數值越高表示速食店到最近小學的距離越短。
 
 ## 分析與說明
 ## F 函數曲線對比：如果某一類型的小學（公立或私立）在所有距離上（x 軸）的 F 值普遍較高，這表示速食店更集中在該類型的小學周圍。
@@ -220,7 +229,8 @@ schools_coords <- st_coordinates(schools)
 fastfood_ppp <- ppp(fastfood_coords[,1], fastfood_coords[,2], window=window)
 schools_ppp <- ppp(schools_coords[,1], schools_coords[,2], window=window)
 
-# 計算 k-階的 F 函數
+# 計算不同最大距離(rmax)下速食店自身的 F 函數，作為與下一段
+# 「速食店 vs 學校」比較的基準參照
 k_values <- 1:3
 par(mfrow=c(1,3))  # 設置圖表佈局
 for (k in k_values) {
@@ -247,6 +257,8 @@ x_range <- c(bnd[1] - 10, bnd[3] + 10)
 y_range <- c(bnd[2] - 10, bnd[4] + 10)
 fastfood_ppp <- ppp(fastfood_coords[, 1], fastfood_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
 schools_ppp <- ppp(schools_coords[, 1], schools_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
+# 接著計算速食店相對於所有學校（不分公私立）的 F 函數，
+# 呈現速食店到最近學校的距離分布，與上一段的基準參照對比
 k_orders <- 1:3
 par(mfrow=c(1,3))  # 設置圖表佈局
 for (k in k_orders) {
@@ -256,5 +268,3 @@ for (k in k_orders) {
 par(mfrow=c(1,1))
 
 ```
- 
- 

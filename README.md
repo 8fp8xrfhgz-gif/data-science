@@ -33,6 +33,11 @@ Coursework applying formal spatial statistics — distance calculations, populat
 
 **Skills:** R, sf, spatstat, spatial statistics, hypothesis testing
 
+### 📈 [Social Statistics (Stata)](./social-statistics-stata)
+Coursework applying formal statistical inference — confidence intervals, one-sample and two-sample hypothesis testing — using Stata on a national social survey dataset (Taiwan Social Change Survey).
+
+**Skills:** Stata, statistical inference, hypothesis testing, confidence intervals
+
 ---
 
 ## Background

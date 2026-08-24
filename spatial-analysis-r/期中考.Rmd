@@ -1,0 +1,201 @@
+---
+title: "空間分析期中考"
+author: "地理三陳允杰B10208038"
+date: "2024-04-08"
+output:
+  html_document:
+    toc: true
+    toc_depth: '4'
+    df_print: paged
+  html_notebook:
+    toc: true
+    toc_depth: 4
+    toc_float: true
+---
+# 第一題
+```{r}
+library(sf)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/W4")
+vill_sf <- st_read("Taipei_Vill.shp", options = "ENCODING=BIG5", quiet = TRUE)
+food_sf <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
+mic_sf <- food_sf[food_sf$STORE == "MIC", ]
+farthest_mcdonalds_distance <- numeric()
+farthest_mcdonalds_store <- character()
+
+for (i in 1:nrow(vill_sf)) {
+  centroid <- st_centroid(vill_sf[i, ])
+  distances <- st_distance(mic_sf, centroid, by_element = TRUE)
+  max_distance_index <- which.max(distances)
+  farthest_mcdonalds_distance[i] <- distances[max_distance_index]
+  farthest_mcdonalds_store[i] <- mic_sf$STORE[max_distance_index]
+}
+farthest_index <- which.max(farthest_mcdonalds_distance)
+farthest_vill_name <- vill_sf$里名稱[farthest_index]
+farthest_vill_district <- vill_sf$行政區[farthest_index]
+farthest_mcdonalds_name <- farthest_mcdonalds_store[farthest_index]
+farthest_distance <- farthest_mcdonalds_distance[farthest_index] / 1000
+cat("距離最遠的里是", farthest_vill_name, "位於", farthest_vill_district, "行政區，最近的麥當勞速食店是", farthest_mcdonalds_name, "，距離為", farthest_distance, "公里。\n")
+```
+# 第二題
+```{r}
+library(sf)
+library(dplyr)
+library(tmap)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/W4")
+taipei_boundary <- st_read("TPE_TOWN.shp", options = "ENCODING=BIG5", quiet = TRUE)
+taipei_vill <- st_read("Taipei_Vill.shp", options = "ENCODING=BIG5", quiet = TRUE)
+weighted_center <- taipei_vill %>%
+  group_by(TOWN_ID) %>%
+  summarise(popu = sum(CENSUS)) %>%
+  st_centroid()
+vill_map <- tm_shape(taipei_boundary) +
+  tm_borders("black") +
+  tm_fill("lightblue", title = "台北市各行政區") +
+  tm_shape(weighted_center) +
+  tm_dots(col = "red", size = 0.3) +
+  tm_layout(title = "台北市各行政區加權平均中心",
+            legend.outside = TRUE,
+            legend.position = c("right", "bottom"),
+            legend.bg.color = "white",
+            legend.bg.alpha = 0.8,
+            frame = FALSE)
+vill_map <- vill_map + tm_scale_bar() +
+  tm_compass(position = c("left", "top"))
+vill_map
+
+```
+
+```{r}
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/W4")
+tpe_fastfood <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
+closest_mcdonalds <- data.frame(TOWN_ID = character(), Store = character(), Distance = numeric())
+for (i in 1:nrow(weighted_center)) {
+  center <- weighted_center[i,]
+  distances <- st_distance(center, tpe_fastfood)
+  closest_index <- which.min(distances)
+  closest_store <- tpe_fastfood$STORE[closest_index]
+  closest_distance <- min(distances)
+  closest_mcdonalds <- rbind(closest_mcdonalds, data.frame(TOWN_ID = weighted_center$TOWN_ID[i], Store = closest_store, Distance = closest_distance))
+}
+print(closest_mcdonalds)
+
+```
+# 第三題
+
+```{r}
+library(sf)
+library(dplyr)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/W4")
+taipei_vill <- st_read("Taipei_Vill.shp", options = "ENCODING=BIG5", quiet = TRUE)
+mcdonalds <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
+buffer_distance <- 2000
+mcdonalds_buffer <- st_buffer(mcdonalds, dist = buffer_distance)
+mcdonalds_coverage <- sapply(st_intersects(mcdonalds_buffer, taipei_vill), function(x) sum(!is.na(x)))
+# 找出被最多家麥當勞速食店服務範圍涵蓋的村里
+max_coverage <- max(mcdonalds_coverage)
+vill_with_max_coverage <- taipei_vill[mcdonalds_coverage == max_coverage, ]
+print(vill_with_max_coverage)
+```
+
+```{r}
+plot(taipei_vill$geometry)
+plot(vill_with_max_coverage, add = TRUE, col = "red")
+```
+# 第四題
+
+```{r}
+library(sf)
+library(ggplot2)
+library(MASS)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/W4")
+taipei_vill <- st_read("Taipei_Vill.shp", options = "ENCODING=BIG5", quiet = TRUE)
+mcdonalds <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
+bandwidths <- c(2000, 5000)
+grid_size <- 300
+max_density_vill <- list()
+min_density_vill <- list()
+par(mfrow = c(1, length(bandwidths)))
+for (bw in bandwidths) {
+  density_est <- kde2d(st_coordinates(mcdonalds)[,1], st_coordinates(mcdonalds)[,2], n = 100, lims = c(min(st_coordinates(mcdonalds)[,1]), max(st_coordinates(mcdonalds)[,1]), min(st_coordinates(mcdonalds)[,2]), max(st_coordinates(mcdonalds)[,2])), h = bw)
+  density_df <- as.data.frame(density_est)
+  ggplot(density_df, aes(x = x, y = y, z = z)) +
+    geom_tile(aes(fill = z)) +
+    scale_fill_gradient(low = "blue", high = "red") +
+    ggtitle(paste("Bandwidth:", bw, "m"))
+}
+```
+```{r}
+max_density_index <- list()
+min_density_index <- list()
+for (bw in bandwidths) {
+  density_est <- kde2d(st_coordinates(mcdonalds)[,1], st_coordinates(mcdonalds)[,2], n = 100, lims = c(min(st_coordinates(mcdonalds)[,1]), max(st_coordinates(mcdonalds)[,1]), min(st_coordinates(mcdonalds)[,2]), max(st_coordinates(mcdonalds)[,2])), h = bw)
+  max_density_index[[bw]] <- which(density_est$z == max(density_est$z), arr.ind = TRUE)
+  min_density_index[[bw]] <- which(density_est$z == min(density_est$z), arr.ind = TRUE)
+}
+for (bw in bandwidths) {
+  max_density_coords <- c(density_est$x[max_density_index[[bw]][1]], density_est$y[max_density_index[[bw]][2]])
+  max_density_point <- st_point(max_density_coords)
+  max_density_point_sf <- st_as_sf(data.frame(x = max_density_coords[1], y = max_density_coords[2]), coords = c("x", "y"))
+  max_density_vill <- taipei_vill[st_within(max_density_point_sf, taipei_vill), "VILLAGE"]
+  min_density_coords <- c(density_est$x[min_density_index[[bw]][1]], density_est$y[min_density_index[[bw]][2]])
+  min_density_point <- st_point(min_density_coords)
+  min_density_point_sf <- st_as_sf(data.frame(x = min_density_coords[1], y = min_density_coords[2]), coords = c("x", "y"))
+  min_density_vill <- taipei_vill[st_within(min_density_point_sf, taipei_vill), "VILLAGE"]
+  print(paste("帶寬:", bw, "公尺"))
+  print(paste("密度最高的里名:", max_density_vill))
+  print(paste("密度最低的里名:", min_density_vill))
+}
+
+```
+
+
+# 第五題
+(a) 用 90% 的信心水準估計整治前的水質是否達到「嚴重污染河川」？
+
+```{r}
+x_bar <- 113.28 
+s <- 13.5 
+n <- 66  
+t_critical <- qt(0.95, df = n - 1) 
+margin_of_error <- t_critical * (s / sqrt(n))
+confidence_interval <- c(x_bar - margin_of_error, x_bar + margin_of_error)
+cat("90% 信心水準下整治前的平均懸浮固體濃度的信心區間:", confidence_interval, "\n")
+if (confidence_interval[1] > 100) {
+  cat("整治前的水質達到「嚴重污染河川」的標準。\n")
+} else {
+  cat("整治前的水質未達到「嚴重污染河川」的標準。\n")
+}
+
+```
+(b) 用 99% 的信心水準評估整治後河川水質的平均懸浮固體濃度，是否有顯著改善？
+
+```{r}
+x_bar_before <- 113.28 
+x_bar_after <- 98.33 
+s <- 13.5 
+n_before <- 66  
+n_after <- 47
+t_value <- (x_bar_before - x_bar_after) / sqrt((s^2 / n_before) + (s^2 / n_after))
+t_critical <- qt(0.995, df = n_before + n_after - 2) 
+cat("t value:", t_value, "\n")
+cat("t critical:", t_critical, "\n")
+if (abs(t_value) > t_critical) {
+  cat("在99%的信心水準下，整治後的平均懸浮固體濃度與整治前有顯著差異。\n")
+} else {
+  cat("在99%的信心水準下，整治後的平均懸浮固體濃度與整治前無顯著差異。\n")
+}
+
+```
+
+應用概念
+信賴區間：用於估計母體參數的區間估計方法。在這個問題中，使用了學生 t 分佈的信賴區間，用於估計整治前的水質是否達到「嚴重污染河川」的標準。
+https://zh.wikipedia.org/zh-tw/%E4%BF%A1%E8%B3%B4%E5%8D%80%E9%96%93
+
+學生 t 分佈：用於小樣本情況下估計母體平均值的概率分佈。在計算信心區間時，使用了學生 t 分佈的臨界值。
+https://homepage.ntu.edu.tw/~clhsieh/biostatistic/5/5-1-2.html
+
+獨立樣本 t 檢定：用於比較兩組樣本均值是否有統計上的顯著差異。在問題(b)中，想要評估整治後河川水質的平均懸浮固體濃度是否有顯著改善，因此使用了獨立樣本 t 檢定。
+https://www.yongxi-stat.com/independent-sample-t-test/
+
+統計推論：通過樣本資料對母體參數進行推測和推斷的過程。在這個問題中，透過信心區間和假設檢定進行了統計推論，以評估水質是否達到標準以及水質是否有顯著改善。
+https://zh.wikipedia.org/zh-tw/%E6%8E%A8%E8%AB%96%E7%B5%B1%E8%A8%88%E5%AD%B8

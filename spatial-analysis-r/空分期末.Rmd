@@ -1,0 +1,260 @@
+---
+title: "空間分析期末"
+author: "地理三陳允杰B10208038"
+date: "2024-06-03"
+output:
+  html_document:
+    toc: true
+    toc_depth: '4'
+    df_print: paged
+  html_notebook:
+    toc: true
+    toc_depth: 4
+    toc_float: true
+---
+# 第一題
+```{r}
+rm(list = ls())
+library(spatstat)
+library(sf)
+library(ggplot2)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/圖資")
+tpe_town <- st_read("TPE_TOWN.shp",options="ENCODING=BIG5",quiet=T)
+tpe_fastfood <- st_read("Tpe_Fastfood.shp",options="ENCODING=BIG5",quiet=T)
+school <- st_read("SCHOOL.shp",options="ENCODING=BIG5",quiet=T)
+fastfood_coords <- st_coordinates(tpe_fastfood)
+x_range <- range(fastfood_coords[, 1])
+y_range <- range(fastfood_coords[, 2])
+window <- owin(xrange = x_range, yrange = y_range)
+fastfood_ppp <- ppp(fastfood_coords[, 1], fastfood_coords[, 2], window = window)
+# 進行 Quadrat Analysis
+Q <- quadratcount(fastfood_ppp, nx = 300 / 10, ny = 300 / 10)
+# 繪製觀察到的點和網格
+plot(Q, main = "Quadrat Analysis of Fast Food Locations")
+points(fastfood_ppp, col = "red", pch = 20)
+# 執行卡方檢定
+quadrat.test(Q, alternative = "clustered", method = "Chisq")
+# 顯示卡方檢定結果
+test_result <- quadrat.test(Q, alternative = "clustered", method = "Chisq")
+print(test_result)
+# 在 95% 顯著水準下判定是否群聚
+if(test_result$p.value < 0.05) {
+  print("在 95% 顯著水準下，速食店位置呈現空間群聚。")
+} else {
+  print("在 95% 顯著水準下，速食店位置未呈現空間群聚。")
+}
+```
+# 第二題
+```{r}
+rm(list = ls())
+library(spatstat)
+library(sf)
+library(ggplot2)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/圖資")
+schools <- st_read("SCHOOL.shp", options = "ENCODING=BIG5", quiet = TRUE)
+public_schools <- schools[schools$Type == "公立", ]
+private_schools <- schools[schools$Type == "私立", ]
+public_coords <- st_coordinates(public_schools)
+private_coords <- st_coordinates(private_schools)
+bnd <- st_bbox(schools)
+x_range <- c(bnd[1] - 10, bnd[3] + 10)
+y_range <- c(bnd[2] - 10, bnd[4] + 10)
+public_ppp <- ppp(public_coords[, 1], public_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
+private_ppp <- ppp(private_coords[, 1], private_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
+k_orders <- 1:5
+public_knn <- sapply(k_orders, function(k) {
+  mean(nndist(public_ppp, k = k))
+})
+private_knn <- sapply(k_orders, function(k) {
+  mean(nndist(private_ppp, k = k))
+})
+knn_data <- data.frame(
+  k = rep(k_orders, 2),
+  Distance = c(public_knn, private_knn),
+  School_Type = rep(c("public", "private"), each = length(k_orders))
+)
+ggplot(knn_data, aes(x = k, y = Distance, color = School_Type)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "K-order Nearest Neighbor Indices",
+       x = "K-order",
+       y = "Mean Nearest Neighbor Distance") +
+  theme_minimal()
+
+```
+# 第三題
+```{r}
+rm(list = ls())
+library(spatstat)
+library(sf)
+library(ggplot2)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/圖資")
+tpe_town <- st_read("TPE_TOWN.shp",options="ENCODING=BIG5",quiet=T)
+fastfood <- st_read("Tpe_Fastfood.shp",options="ENCODING=BIG5",quiet=T)
+schools <- st_read("SCHOOL.shp",options="ENCODING=BIG5",quiet=T)
+public_schools <- schools[schools$Type == "公立", ]
+fastfood_coords <- st_coordinates(fastfood)
+public_school_coords <- st_coordinates(public_schools)
+bnd <- st_bbox(st_union(st_geometry(fastfood), st_geometry(public_schools)))
+x_range <- c(bnd[1], bnd[3])
+y_range <- c(bnd[2], bnd[4])
+fastfood_ppp <- ppp(fastfood_coords[, 1], fastfood_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
+public_school_ppp <- ppp(public_school_coords[, 1], public_school_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
+fastfood_K <- Kest(fastfood_ppp, correction = "border")
+public_school_K <- Kest(public_school_ppp, correction = "border")
+plot(fastfood_K, main = "K_fastfood", col = "red")
+plot(public_school_K, main = "K_public_school", col = "blue")
+fastfood_K_df <- data.frame(r = fastfood_K$r, K = fastfood_K$border, Type = "fastfood")
+public_school_K_df <- data.frame(r = public_school_K$r, K = public_school_K$border, Type = "public_school")
+K_df <- rbind(fastfood_K_df, public_school_K_df)
+ggplot(K_df, aes(x = r, y = K, color = Type)) +
+  geom_line() +
+  labs(title = "K_fastfood_vs_public_school",
+       x = "r",
+       y = "K(r)",
+       color = "color") +
+  theme_minimal()
+
+```
+# 第四題
+```{r}
+library(spatstat)
+library(sf)
+library(ggplot2)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/圖資")
+fastfood <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
+schools <- st_read("SCHOOL.shp", options = "ENCODING=BIG5", quiet = TRUE)
+tpe_town <- st_read("TPE_TOWN.shp", options = "ENCODING=BIG5", quiet = TRUE)
+public_schools <- schools[schools$Type == "公立", ]
+private_schools <- schools[schools$Type == "私立", ]
+ggplot() +
+  geom_sf(data = tpe_town, fill = "white", color = "black") +
+  geom_sf(data = public_schools, aes(color = "Public School"), size = 1) +
+  geom_sf(data = private_schools, aes(color = "Private School"), size = 1) +
+  geom_sf(data = fastfood, aes(color = "Fast Food"), size = 1) +
+  scale_color_manual(values = c("Public School" = "blue", "Private School" = "green", "Fast Food" = "red")) +
+  labs(title = "Locations of Public and Private Schools and Fast Food Restaurants in Taipei",
+       color = "Type") +
+  theme_minimal()
+
+```
+
+```{r}
+library(spatstat)
+library(sf)
+library(ggplot2)
+library(dplyr)
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/圖資")
+fastfood <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
+schools <- st_read("SCHOOL.shp", options = "ENCODING=BIG5", quiet = TRUE)
+tpe_town <- st_read("TPE_TOWN.shp", options = "ENCODING=BIG5", quiet = TRUE)
+public_schools <- schools %>% filter(Type == "公立")
+private_schools <- schools %>% filter(Type == "私立")
+fastfood_ppp <- as.ppp(st_coordinates(fastfood), W = as.owin(st_bbox(tpe_town)))
+public_schools_ppp <- as.ppp(st_coordinates(public_schools), W = as.owin(st_bbox(tpe_town)))
+private_schools_ppp <- as.ppp(st_coordinates(private_schools), W = as.owin(st_bbox(tpe_town)))
+r_values <- seq(0, 5000, by = 10)
+F_public <- tryCatch({
+  Fest(fastfood_ppp, public_schools_ppp, r = r_values)
+}, error = function(e) {
+  print("Error calculating F_public:")
+  print(e)
+  NULL
+})
+F_private <- tryCatch({
+  Fest(fastfood_ppp, private_schools_ppp, r = r_values)
+}, error = function(e) {
+  print("Error calculating F_private:")
+  print(e)
+  NULL
+})
+if (!is.null(F_public) && !is.null(F_private)) {
+  F_data <- data.frame(
+    Distance = c(F_public$r, F_private$r),
+    F_value = c(F_public$theo, F_private$theo),
+    SchoolType = factor(rep(c("Public", "Private"), each = length(F_public$r)))
+  )
+  ggplot(F_data, aes(x = Distance, y = F_value, color = SchoolType)) +
+    geom_line(size = 1) +
+    labs(title = "F-function: Distance to Nearest School of Specified Type",
+         x = "Distance (meters)",
+         y = "F(d)") +
+    theme_minimal() +
+    scale_color_manual(values = c("Public" = "blue", "Private" = "red"))
+} else {
+  print("Error in calculating F functions. Check the data and calculations.")
+}
+```
+## 結果解釋
+## 圖表顯示了速食店到最近公立和私立小學的 F 函數。F 函數表示的是速食店到最近小學的累積分佈函數（CDF），數值越高表示速食店到最近小學的距離越短。
+
+## 分析與說明
+## F 函數曲線對比：如果某一類型的小學（公立或私立）在所有距離上（x 軸）的 F 值普遍較高，這表示速食店更集中在該類型的小學周圍。
+## 結論：
+## 如果紅色（私立小學）的 F 函數曲線高於藍色（公立小學）的曲線，這意味著速食店更集中在私立小學周圍。
+## 反之，如果藍色（公立小學）的 F 函數曲線高於紅色（私立小學）的曲線，這意味著速食店更集中在公立小學周圍。
+
+# 第五題
+```{r}
+# 設定工作目錄
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/圖資")
+library(sf)
+library(sp)
+library(spatstat)
+
+fastfood <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
+schools <- st_read("SCHOOL.shp", options = "ENCODING=BIG5", quiet = TRUE)
+tpe_town <- st_read("TPE_TOWN.shp", options = "ENCODING=BIG5", quiet = TRUE)
+
+# 將 sf 對象轉換為 sp 對象
+tpe_town_sp <- as(tpe_town, "Spatial")
+
+# 將 sp 對象轉換為 owin 對象
+window <- as.owin(tpe_town_sp)
+
+# 提取經緯度
+fastfood_coords <- st_coordinates(fastfood)
+schools_coords <- st_coordinates(schools)
+
+# 創建點模式
+fastfood_ppp <- ppp(fastfood_coords[,1], fastfood_coords[,2], window=window)
+schools_ppp <- ppp(schools_coords[,1], schools_coords[,2], window=window)
+
+# 計算 k-階的 F 函數
+k_values <- 1:3
+par(mfrow=c(1,3))  # 設置圖表佈局
+for (k in k_values) {
+    F_k <- Fest(fastfood_ppp, rmax=k)
+    plot(F_k, main=paste("k =", k), legend=FALSE)
+}
+
+# 恢復默認的圖表佈局
+par(mfrow=c(1,1))
+
+```
+```{r}
+setwd("/Users/titan09205030/Desktop/台大修課/空間分析/圖資")
+library(sf)
+library(sp)
+library(spatstat)
+fastfood <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
+schools <- st_read("SCHOOL.shp", options = "ENCODING=BIG5", quiet = TRUE)
+tpe_town <- st_read("TPE_TOWN.shp", options = "ENCODING=BIG5", quiet = TRUE)
+fastfood_coords <- st_coordinates(fastfood)
+schools_coords <- st_coordinates(schools)
+bnd <- st_bbox(schools)
+x_range <- c(bnd[1] - 10, bnd[3] + 10)
+y_range <- c(bnd[2] - 10, bnd[4] + 10)
+fastfood_ppp <- ppp(fastfood_coords[, 1], fastfood_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
+schools_ppp <- ppp(schools_coords[, 1], schools_coords[, 2], window = owin(xrange = x_range, yrange = y_range))
+k_orders <- 1:3
+par(mfrow=c(1,3))  # 設置圖表佈局
+for (k in k_orders) {
+  F_k <- Fest(fastfood_ppp, schools_ppp, rmax=k)
+  plot(F_k, main=paste("k =", k), legend=FALSE)
+}
+par(mfrow=c(1,1))
+
+```
+ 
+ 

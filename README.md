@@ -24,3 +24,12 @@ Regression model predicting NO2 Air Quality Index using EPA monitoring data, inc
 ## Background
 
 B.A. in Geography (GIS focus), National Taiwan University. Currently studying data science, Python, SQL, and machine learning fundamentals.
+
+### 🗺️ [Taiwan Air Quality Analysis (NTU Coursework)](./taiwan-air-quality)
+Midterm and final exam projects from my GIS programming coursework at 
+National Taiwan University — nearest-station spatial search, SQL-based 
+data analysis, and geospatial visualization (geopandas/folium) of air 
+quality monitoring data. Directly connects to my current final project 
+on U.S. EPA pollution prediction.
+
+**Skills:** Python, SQL, geopandas, folium, object-oriented programming

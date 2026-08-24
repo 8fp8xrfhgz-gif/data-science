@@ -6,8 +6,8 @@ This folder contains my midterm and final exam projects, both built around real 
 
 ## Contents
 
-- **`Midterm.ipynb`** — Basic data querying and a nearest-station search algorithm (finds the closest air quality monitoring station to a given coordinate), implemented in pure Python.
-- **`Final_Exam.ipynb`** — A more advanced object-oriented air quality analysis tool, including:
+- **`midterm_nearest_station_search.ipynb`** — Basic data querying and a nearest-station search algorithm (finds the closest air quality monitoring station to a given coordinate), implemented in pure Python.
+- **`final_exam_air_quality_dashboard.ipynb`** — A more advanced object-oriented air quality analysis tool, including:
   - SQL querying (`sqlite3`) and pivot-table summaries of pollutant data by station
   - Time-series comparison charts between monitoring stations (matplotlib)
   - Geospatial visualization with `geopandas` and `folium`, flagging stations that exceed pollution thresholds on a map of Taipei/New Taipei

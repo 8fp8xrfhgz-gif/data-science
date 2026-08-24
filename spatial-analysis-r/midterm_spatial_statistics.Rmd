@@ -104,6 +104,9 @@ plot(vill_with_max_coverage, add = TRUE, col = "red")
 # 第四題
 
 ```{r}
+# NOTE (fixed): the original loop built each ggplot object but never
+# printed it, so no plots were actually rendered when the loop ran.
+# Wrapping in print() ensures each bandwidth's density plot displays.
 library(sf)
 library(ggplot2)
 library(MASS)
@@ -112,35 +115,39 @@ taipei_vill <- st_read("Taipei_Vill.shp", options = "ENCODING=BIG5", quiet = TRU
 mcdonalds <- st_read("Tpe_Fastfood.shp", options = "ENCODING=BIG5", quiet = TRUE)
 bandwidths <- c(2000, 5000)
 grid_size <- 300
-max_density_vill <- list()
-min_density_vill <- list()
 par(mfrow = c(1, length(bandwidths)))
 for (bw in bandwidths) {
   density_est <- kde2d(st_coordinates(mcdonalds)[,1], st_coordinates(mcdonalds)[,2], n = 100, lims = c(min(st_coordinates(mcdonalds)[,1]), max(st_coordinates(mcdonalds)[,1]), min(st_coordinates(mcdonalds)[,2]), max(st_coordinates(mcdonalds)[,2])), h = bw)
   density_df <- as.data.frame(density_est)
-  ggplot(density_df, aes(x = x, y = y, z = z)) +
+  p <- ggplot(density_df, aes(x = x, y = y, z = z)) +
     geom_tile(aes(fill = z)) +
     scale_fill_gradient(low = "blue", high = "red") +
     ggtitle(paste("Bandwidth:", bw, "m"))
+  print(p)
 }
 ```
 ```{r}
+# NOTE (fixed): the original version reused a single `density_est`
+# left over from the previous loop instead of recomputing it for each
+# bandwidth, so both bandwidths reported the same max/min density
+# village. This version recomputes density_est inside the loop for
+# each bw, so the two bandwidths are evaluated independently.
 max_density_index <- list()
 min_density_index <- list()
 for (bw in bandwidths) {
   density_est <- kde2d(st_coordinates(mcdonalds)[,1], st_coordinates(mcdonalds)[,2], n = 100, lims = c(min(st_coordinates(mcdonalds)[,1]), max(st_coordinates(mcdonalds)[,1]), min(st_coordinates(mcdonalds)[,2]), max(st_coordinates(mcdonalds)[,2])), h = bw)
-  max_density_index[[bw]] <- which(density_est$z == max(density_est$z), arr.ind = TRUE)
-  min_density_index[[bw]] <- which(density_est$z == min(density_est$z), arr.ind = TRUE)
-}
-for (bw in bandwidths) {
-  max_density_coords <- c(density_est$x[max_density_index[[bw]][1]], density_est$y[max_density_index[[bw]][2]])
-  max_density_point <- st_point(max_density_coords)
+
+  max_idx <- which(density_est$z == max(density_est$z), arr.ind = TRUE)
+  min_idx <- which(density_est$z == min(density_est$z), arr.ind = TRUE)
+
+  max_density_coords <- c(density_est$x[max_idx[1]], density_est$y[max_idx[2]])
   max_density_point_sf <- st_as_sf(data.frame(x = max_density_coords[1], y = max_density_coords[2]), coords = c("x", "y"))
   max_density_vill <- taipei_vill[st_within(max_density_point_sf, taipei_vill), "VILLAGE"]
-  min_density_coords <- c(density_est$x[min_density_index[[bw]][1]], density_est$y[min_density_index[[bw]][2]])
-  min_density_point <- st_point(min_density_coords)
+
+  min_density_coords <- c(density_est$x[min_idx[1]], density_est$y[min_idx[2]])
   min_density_point_sf <- st_as_sf(data.frame(x = min_density_coords[1], y = min_density_coords[2]), coords = c("x", "y"))
   min_density_vill <- taipei_vill[st_within(min_density_point_sf, taipei_vill), "VILLAGE"]
+
   print(paste("帶寬:", bw, "公尺"))
   print(paste("密度最高的里名:", max_density_vill))
   print(paste("密度最低的里名:", min_density_vill))
@@ -170,6 +177,10 @@ if (confidence_interval[1] > 100) {
 (b) 用 99% 的信心水準評估整治後河川水質的平均懸浮固體濃度，是否有顯著改善？
 
 ```{r}
+# NOTE: this pooled-variance t-test assumes both groups share the
+# same standard deviation `s`. A stricter approach would first test
+# for equal variances (or use Welch's t-test, which doesn't assume
+# equal variances) before choosing the formula.
 x_bar_before <- 113.28 
 x_bar_after <- 98.33 
 s <- 13.5 

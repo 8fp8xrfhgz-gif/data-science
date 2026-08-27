@@ -2,6 +2,8 @@
 
 Hi, I'm Austin — a Geography (GIS) major currently building data science skills through UCLA Extension's Data Science Fundamentals program, working toward an MSDS application (Fall 2027).
 
+👉 **Start here:** my primary project is the Final Project below (Air Pollution Prediction), combining regression modeling with a GIS/spatial perspective — check back soon as it's completed.
+
 ## Projects
 
 ### 🌍 Final Project: Air Pollution Prediction *(in progress)*

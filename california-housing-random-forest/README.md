@@ -13,3 +13,6 @@ End-to-end supervised ML project predicting median house values using a random f
 
 ## Skills
 R, randomForest, data munging, EDA, feature engineering, regression modeling
+
+## Data
+- housing.csv - California housing dataset (1990 census), 20,640 rows
